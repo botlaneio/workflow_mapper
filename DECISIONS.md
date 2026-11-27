@@ -68,16 +68,13 @@ The summary link is `/s/<token>`, a second unguessable token, expiring with the 
 
 The PDF is a text PDF generated in the Worker, with no headless browser and no third-party renderer. The server-rendered HTML is the print fallback for the same page.
 
-CRM is a server-side adapter. `CRM_ADAPTER=noop` (the default) returns without a network call. `CRM_ADAPTER=mock` keeps the last push in the isolate for a local check. Neither calls Comp AI. `bot_central` was not read or changed, so the real HTTP shape was not guessed.
+CRM is a server-side adapter. `CRM_API_KEY` selects the Comp AI adapter. When that secret is unset, `CRM_ADAPTER=noop` (the default) returns without a network call and `CRM_ADAPTER=mock` keeps the last push in the isolate. The key is the `x-api-key` header. It is a Worker secret, never logged, and never sent to the browser.
 
-To wire the real adapter, Solo needs to provide:
+The base URL is `crmBaseUrl` on the org config, default `https://ops-api.botlane.io/rest`. Shapes were checked against the public OpenAPI document at `https://ops-api.botlane.io/openapi.json` (no writes). A push always searches before it creates. Company match is an exact trimmed, case-insensitive name (`q` is a contains search). Contact match is an exact first name inside that company. Email is not sent. The role is `title`. The note is a `NOTE` activity. The first subject is `Workflow map: <company> (discovery call)`; a later change is `Workflow map: <company> (updated)`. The body is the plain-text client summary plus the summary link.
 
-1. The API base URL to call (the brief names `ops-api.botlane.io`; confirm it).
-2. Auth: the header name, the scheme, and a dedicated secret for this Worker. Do not reuse the website key in the repo.
-3. Find-or-create company: method, path, which field matches an existing company, and the request and response JSON.
-4. Find-or-create contact: method, path, how the contact links to the company, and whether an email is required. The workshop only collects a first name and a role today.
-5. Add note: method, path, and the fields for the title `Workflow map: <process>`, the plain-text body, and the summary URL.
-6. The error shape, and what should happen if the same map is pushed twice.
+The private map stores `crm: { companyId, contactId, noteIds, lastPushedAt, lastPushedHash }`. Clients never receive that map. A repeat push loads the stored ids, patches fields that differ, and falls back to find-or-create on a 404. An unchanged hash skips the note and reports "Already up to date". Notes have no update endpoint, so a change appends a new id. A 401 reports "CRM key missing or expired". Any other failure reports "Not sent to CRM" and the presenter can retry. The map save does not wait on CRM.
+
+OpenAPI differed from the integration note in a few places. Creates and updates are documented as 200, not 201. The spec does not list 409 on company create, contact create, or patch; the note does, for a duplicate domain or email, and the adapter still treats 409 as "search again, otherwise not sent". Activity `required` is only `type`; the note also requires one of company, contact, or deal, and the adapter sends both company and contact. The spec has no `servers` entry, so the base URL stays on the org. The adapter does not send a country, an industry, or a domain. The workshop does not collect those.
 
 Library changes from a live map are `template_proposals` rows with `org_id`. Approve writes or updates a template. Reject leaves the library unchanged. An admin can also add or archive a template directly. Presenters cannot approve.
 
@@ -85,4 +82,4 @@ Library changes from a live map are `template_proposals` rows with `org_id`. App
 
 - AI routes under `/api/ai/*` return 501 to a signed-in presenter and call no model.
 - Real Estate and Clinics.
-- The real Comp AI HTTP adapter, once the list above is answered.
+- A live CRM key in this workspace. The adapter is covered by mocked-fetch tests only.

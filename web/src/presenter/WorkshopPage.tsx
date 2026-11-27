@@ -58,6 +58,25 @@ export default function WorkshopPage() {
   const [selected, setSelected] = useState("");
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [crmBusy, setCrmBusy] = useState(false);
+  const [crmNote, setCrmNote] = useState("");
+  const [crmOk, setCrmOk] = useState(true);
+
+  async function sendCrm() {
+    if (crmBusy) return;
+    setCrmBusy(true);
+    setCrmNote("");
+    try {
+      const body = await api<{ ok: boolean; message: string }>(`/api/presenter/sessions/${id}/crm`, { method: "POST", body: "{}" });
+      setCrmOk(body.ok !== false);
+      setCrmNote(body.message);
+    } catch (err) {
+      setCrmOk(false);
+      setCrmNote(err instanceof Error ? err.message : "Not sent to CRM");
+    } finally {
+      setCrmBusy(false);
+    }
+  }
 
   useEffect(() => {
     api<{ user: AuthUser }>("/api/auth/me")
@@ -207,8 +226,10 @@ export default function WorkshopPage() {
                   <button className="btn" type="button" onClick={() => post(`/api/presenter/sessions/${id}/summary`, { enabled: meta.summaryEnabled === false })}>{meta.summaryEnabled === false ? "Turn summary on" : "Turn summary off"}</button>
                   <button className="btn" type="button" onClick={() => api(`/api/presenter/sessions/${id}/proposals`, { method: "POST", body: JSON.stringify({ kind: "new" }) }).then(() => setNotice("Sent to admin for approval")).catch((err) => setError(err.message))}>Save as template</button>
                   <button className="btn" type="button" onClick={() => api(`/api/presenter/sessions/${id}/proposals`, { method: "POST", body: JSON.stringify({ kind: "improvement" }) }).then(() => setNotice("Suggestion sent for approval")).catch((err) => setError(err.message))}>Suggest improvement</button>
-                  <button className="btn" type="button" onClick={() => api<{ message: string }>(`/api/presenter/sessions/${id}/crm`, { method: "POST", body: "{}" }).then((body) => setNotice(body.message)).catch((err) => setError(err.message))}>Send to CRM</button>
+                  <button className="btn" type="button" disabled={crmBusy} onClick={() => void sendCrm()}>{crmBusy ? "Sending…" : "Send to CRM"}</button>
+                  {!crmOk && crmNote ? <button className="btn" type="button" disabled={crmBusy} onClick={() => void sendCrm()}>Retry</button> : null}
                 </div>
+                {crmNote ? <p role={crmOk ? "status" : "alert"}>{crmNote}</p> : null}
                 <div className="row">
                   <button className="btn" type="button" onClick={() => post(`/api/presenter/sessions/${id}/link`, { enabled: !meta.linkEnabled })}>{meta.linkEnabled ? "Turn link off" : "Turn link on"}</button>
                   <button className="btn danger" type="button" onClick={() => post(`/api/presenter/sessions/${id}/end`)}>End session</button>

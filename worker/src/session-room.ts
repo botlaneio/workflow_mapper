@@ -1,12 +1,14 @@
 import { DurableObject } from "cloudflare:workers";
 import * as Y from "yjs";
 import { base64ToBytes, bytesToBase64, hmacSign, safeEqual, sha256Hex } from "../../shared/src/bytes";
-import { buildClientSummary } from "../../shared/src/client-summary";
-import { CLIENT_LOCKED_META, readPrivate, readShared, seedPrivate, seedShared, upsertParticipant } from "../../shared/src/doc";
+import { buildClientSummary, clientSummaryText, type ClientSummary } from "../../shared/src/client-summary";
+import { CLIENT_LOCKED_META, readCrm, readPrivate, readShared, seedPrivate, seedShared, upsertParticipant, writeCrm } from "../../shared/src/doc";
 import { buildOpportunities, toRevealed } from "../../shared/src/estimate";
 import { waitHours } from "../../shared/src/format";
 import type { Catalog, RevealedEstimates } from "../../shared/src/types";
 import { currentUser } from "./auth";
+import { crmPushFromSummary } from "./crm";
+import { pushToCompAi } from "./crm-compai";
 import type { Env, SessionRow } from "./env";
 
 type Role = "presenter" | "client";
@@ -70,6 +72,9 @@ export class SessionRoom extends DurableObject<Env> {
     }
     if (url.pathname.endsWith("/export") && request.method === "POST") {
       return this.enqueue(() => this.exportView(request));
+    }
+    if (url.pathname.endsWith("/crm") && request.method === "POST") {
+      return this.enqueue(() => this.crmPush(request));
     }
     return new Response("Not found", { status: 404 });
   }
@@ -180,9 +185,72 @@ export class SessionRoom extends DurableObject<Env> {
     const expected = await hmacSign(`export.${body.sessionId}`, this.env.AUTH_SECRET);
     if (!safeEqual(request.headers.get("x-wm-export") ?? "", expected)) return new Response("Forbidden", { status: 403 });
     const docs = await this.getDocs();
+    const built = this.summaryFrom(docs);
+    if (!built) return Response.json({ error: "Session is not ready" }, { status: 409 });
+    const { summary, snap, priv } = built;
+    const roleName = (id: string) => snap.roles.find((role) => role.id === id)?.name || "";
+    const draft = {
+      name: snap.processName || "Untitled process",
+      description: snap.client.product ? `Saved from a live workshop. They make ${snap.client.product}.` : "Saved from a live workshop.",
+      runUnit: snap.runUnit || "run",
+      roles: snap.roles.map((role) => role.name).filter(Boolean),
+      steps: snap.steps.map((step) => ({
+        title: step.title || "Untitled step",
+        role: roleName(step.roleId),
+        tool: step.tool,
+        commonFlags: step.flags,
+      })),
+      questions: priv?.questions ?? [],
+    };
+    return Response.json({ summary, draft });
+  }
+
+  private async crmPush(request: Request): Promise<Response> {
+    let body: { sessionId?: string; summaryUrl?: string; baseUrl?: string };
+    try {
+      body = await request.json();
+    } catch {
+      return new Response("Bad request", { status: 400 });
+    }
+    if (!body.sessionId || !this.env.AUTH_SECRET) return new Response("Bad request", { status: 400 });
+    const expected = await hmacSign(`crm.${body.sessionId}`, this.env.AUTH_SECRET);
+    if (!safeEqual(request.headers.get("x-wm-crm") ?? "", expected)) return new Response("Forbidden", { status: 403 });
+    if (!this.env.CRM_API_KEY) {
+      return Response.json({ ok: true, connected: false, message: "CRM is not connected. Nothing was sent. The note is ready for the real adapter." });
+    }
+    const docs = await this.getDocs();
+    const built = this.summaryFrom(docs);
+    if (!built) return Response.json({ ok: false, message: "Not sent to CRM" }, { status: 409 });
+    const summaryUrl = body.summaryUrl || "";
+    const finalOutcome = await pushToCompAi({
+      baseUrl: body.baseUrl || "https://ops-api.botlane.io/rest",
+      apiKey: this.env.CRM_API_KEY,
+      push: crmPushFromSummary({
+        company: built.summary.company,
+        contact: built.summary.contact,
+        contactRole: built.summary.contactRole,
+        city: built.summary.city,
+        processName: built.summary.processName,
+        summaryText: clientSummaryText(built.summary),
+        summaryUrl,
+      }),
+      record: readCrm(docs.priv),
+      log: (status, text) => console.error(`CRM ${status} ${text}`),
+    });
+    const updates: Uint8Array[] = [];
+    const collect = (update: Uint8Array) => updates.push(update);
+    docs.priv.on("update", collect);
+    writeCrm(docs.priv, finalOutcome.record);
+    docs.priv.off("update", collect);
+    await this.persist(docs);
+    if (updates.length) this.sendTo("presenter", { t: "update", doc: "private", update: bytesToBase64(Y.mergeUpdates(updates)) });
+    return Response.json({ ok: finalOutcome.ok, message: finalOutcome.message });
+  }
+
+  private summaryFrom(docs: Docs): { summary: ClientSummary; snap: NonNullable<ReturnType<typeof readShared>>; priv: ReturnType<typeof readPrivate> } | null {
     const snap = readShared(docs.shared);
     const priv = readPrivate(docs.priv);
-    if (!snap || !this.catalog) return Response.json({ error: "Session is not ready" }, { status: 409 });
+    if (!snap || !this.catalog) return null;
     const summary = buildClientSummary({
       company: snap.client.company,
       contact: snap.client.contact,
@@ -208,21 +276,7 @@ export class SessionRoom extends DurableObject<Env> {
       whatGood: snap.whatGood,
       overrides: priv?.overrides ?? {},
     }, this.catalog);
-    const roleName = (id: string) => snap.roles.find((role) => role.id === id)?.name || "";
-    const draft = {
-      name: snap.processName || "Untitled process",
-      description: snap.client.product ? `Saved from a live workshop. They make ${snap.client.product}.` : "Saved from a live workshop.",
-      runUnit: snap.runUnit || "run",
-      roles: snap.roles.map((role) => role.name).filter(Boolean),
-      steps: snap.steps.map((step) => ({
-        title: step.title || "Untitled step",
-        role: roleName(step.roleId),
-        tool: step.tool,
-        commonFlags: step.flags,
-      })),
-      questions: priv?.questions ?? [],
-    };
-    return Response.json({ summary, draft });
+    return { summary, snap, priv };
   }
 
   private loaded: Docs | null = null;

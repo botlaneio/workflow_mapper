@@ -8,8 +8,10 @@ export interface Env {
   PUBLIC_ORIGIN?: string;
   CF_ACCESS_TEAM_DOMAIN?: string;
   CF_ACCESS_AUD?: string;
-  /** "noop" (default) or "mock". The real Comp AI adapter is not wired. */
+  /** "noop" (default) or "mock". Ignored when CRM_API_KEY is set. */
   CRM_ADAPTER?: string;
+  /** Comp AI key. Server-only. When unset, the noop or mock adapter is used. */
+  CRM_API_KEY?: string;
 }
 
 export interface UserRow {

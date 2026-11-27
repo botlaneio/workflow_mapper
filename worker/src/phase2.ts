@@ -2,6 +2,7 @@ import type { Context, Hono } from "hono";
 import { clientSummaryText, type ClientSummary } from "../../shared/src/client-summary";
 import { hmacSign, secretToken } from "../../shared/src/bytes";
 import { BOTLANE_ORG, publicOrg } from "../../shared/src/catalog";
+import type { OrgConfig } from "../../shared/src/types";
 import type { Env, SessionRow, UserRow } from "./env";
 import { crmAdapter, crmPushFromSummary } from "./crm";
 import { textPdf } from "./pdf";
@@ -57,26 +58,45 @@ export function registerPhase2(app: App): void {
     if (!row) return c.json({ error: "Session not found" }, 404);
     const token = await ensureSummaryToken(c.env, row);
     const origin = new URL(c.req.url).origin;
-    const summary = await exportSummary(c.env, row.id);
-    if (!summary) return c.json({ error: "The map is not ready to send" }, 409);
     const summaryUrl = `${origin}/s/${token}`;
-    const push = crmPushFromSummary({
-      company: summary.company,
-      contact: summary.contact,
-      contactRole: summary.contactRole,
-      city: summary.city,
-      processName: summary.processName,
-      summaryText: clientSummaryText(summary),
-      summaryUrl,
-    });
-    const result = await crmAdapter(c.env.CRM_ADAPTER).push(push);
+    if (!c.env.CRM_API_KEY) {
+      const summary = await exportSummary(c.env, row.id);
+      if (!summary) return c.json({ error: "The map is not ready to send" }, 409);
+      const push = crmPushFromSummary({
+        company: summary.company,
+        contact: summary.contact,
+        contactRole: summary.contactRole,
+        city: summary.city,
+        processName: summary.processName,
+        summaryText: clientSummaryText(summary),
+        summaryUrl,
+      });
+      const result = await crmAdapter(c.env.CRM_ADAPTER).push(push);
+      return c.json({
+        ok: true,
+        adapter: result.adapter,
+        reference: result.reference,
+        message: result.adapter === "noop"
+          ? "CRM is not connected. Nothing was sent. The note is ready for the real adapter."
+          : "Recorded in the local mock adapter. Nothing was sent to Comp AI.",
+      });
+    }
+    if (!c.env.AUTH_SECRET) return c.json({ ok: false, message: "Not sent to CRM" });
+    const org = await loadOrg(c.env);
+    const baseUrl = typeof org.crmBaseUrl === "string" && org.crmBaseUrl
+      ? org.crmBaseUrl
+      : "https://ops-api.botlane.io/rest";
+    const stamp = await hmacSign(`crm.${row.id}`, c.env.AUTH_SECRET);
+    const stub = c.env.SESSION_ROOM.get(c.env.SESSION_ROOM.idFromName(row.id));
+    const response = await stub.fetch(new Request("https://session/crm", {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-wm-crm": stamp },
+      body: JSON.stringify({ sessionId: row.id, summaryUrl, baseUrl }),
+    }));
+    const payload = await response.json().catch(() => ({ ok: false, message: "Not sent to CRM" })) as { ok?: boolean; message?: string };
     return c.json({
-      ok: true,
-      adapter: result.adapter,
-      reference: result.reference,
-      message: result.adapter === "noop"
-        ? "CRM is not connected. Nothing was sent. The note is ready for the real adapter."
-        : "Recorded in the local mock adapter. Nothing was sent to Comp AI.",
+      ok: payload.ok === true,
+      message: payload.message || "Not sent to CRM",
     });
   });
 
@@ -318,8 +338,8 @@ interface Draft {
   questions: string[];
 }
 
-async function loadOrg(env: Env) {
+async function loadOrg(env: Env): Promise<OrgConfig> {
   const row = await env.DB.prepare("SELECT config_json FROM orgs WHERE id = ?").bind(BOTLANE_ORG.id).first<{ config_json: string }>();
   if (!row) return BOTLANE_ORG;
-  return JSON.parse(row.config_json);
+  return JSON.parse(row.config_json) as OrgConfig;
 }

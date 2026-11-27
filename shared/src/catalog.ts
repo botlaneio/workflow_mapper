@@ -133,10 +133,11 @@ export const BOTLANE_ORG = {
   team: [
     { id: "user_admin", email: "admin@botlane.io", name: "Solo", role: "admin" as const },
   ],
+  crmBaseUrl: "https://ops-api.botlane.io/rest",
 };
 
-export function publicOrg<T extends { team?: unknown }>(org: T): Omit<T, "team"> {
-  const { team: _team, ...rest } = org;
+export function publicOrg<T extends { team?: unknown; crmBaseUrl?: unknown }>(org: T): Omit<T, "team" | "crmBaseUrl"> {
+  const { team: _team, crmBaseUrl: _crmBaseUrl, ...rest } = org;
   return rest;
 }
 

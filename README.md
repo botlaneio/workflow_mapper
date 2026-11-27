@@ -46,7 +46,20 @@ node scripts/verify-phase2.mjs
 
 The presenter can play the before/after reveal, copy a summary link (`/s/<token>`), turn that link off, download a PDF, and send the map to CRM. The summary link expires with the session, has no trackers, and is built from a server-filtered payload: the map, pains in the client's words, solution-area names, and rough hours. It does not include private notes, pricing hints, factors, or suggested-fix sentences.
 
-CRM uses `CRM_ADAPTER`. The default is `noop`, which does not call the network. `mock` only remembers the last push in the local Worker. The real Comp AI adapter is not implemented. See `DECISIONS.md` for the endpoint, auth, and field mapping Solo needs to provide.
+CRM calls Comp AI only when the Worker has `CRM_API_KEY`. Without that secret, `CRM_ADAPTER=noop` (the default) does not call the network, and `CRM_ADAPTER=mock` only remembers the last push in the local Worker. The key is never written into this repo, `.dev.vars.example`, or the client.
+
+To connect it, Solo creates a dedicated key in the CRM:
+
+1. Open [ops.botlane.io](https://ops.botlane.io) → Settings → API keys.
+2. Name the key `workflow-mapper`. Pick an expiry (1 to 365 days, or none).
+3. Copy the `crm_...` value once. It is shown only once. Do not reuse the website key.
+4. From this repo, set the Worker secret:
+
+```bash
+npx wrangler secret put CRM_API_KEY
+```
+
+For the preview Worker, add `--env preview`. Revoke the key in the same Settings screen. The REST base defaults to `https://ops-api.botlane.io/rest` and can be changed per org with `crmBaseUrl`. A push finds or creates the company, then the contact (first name, role as title, no email), then adds a note with the plain-text summary and the summary link. The CRM ids stay on the presenter's private map. A failed push shows "Not sent to CRM" with Retry, or "CRM key missing or expired" on a 401, and does not block the map.
 
 Admins open **Library admin** to add a template, archive one, or approve a presenter's "Save as template" / "Suggest improvement" before it enters the library.
 
@@ -64,6 +77,7 @@ Do not deploy to production. There is no production environment in this repo.
 npx wrangler secret put AUTH_SECRET --env preview
 npx wrangler secret put CF_ACCESS_TEAM_DOMAIN --env preview
 npx wrangler secret put CF_ACCESS_AUD --env preview
+npx wrangler secret put CRM_API_KEY --env preview
 ```
 
 `CF_ACCESS_TEAM_DOMAIN` is the team name only, for example `botlane`, which the Worker turns into `https://botlane.cloudflareaccess.com`. Leave `AUTH_MODE` as `access`. Do not set `DEV_LOGIN_PASSWORD` on the preview Worker.

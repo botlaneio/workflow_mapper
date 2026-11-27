@@ -3,3 +3,4 @@ AUTH_MODE=dev
 AUTH_SECRET=replace-with-a-long-random-string
 DEV_LOGIN_PASSWORD=replace-with-a-local-password
 PUBLIC_ORIGIN=http://127.0.0.1:5173
+# Leave CRM_API_KEY unset here. Create it in ops.botlane.io and run: npx wrangler secret put CRM_API_KEY

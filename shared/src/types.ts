@@ -83,6 +83,8 @@ export interface OrgConfig {
   assets: OrgAssets;
   /** Presenter sign-in allowlist. Not sent on the public brand response. */
   team: TeamMember[];
+  /** Comp AI REST base, including /rest. Server reads this; the key stays a Worker secret. */
+  crmBaseUrl?: string;
 }
 
 export interface PublicBrand {
