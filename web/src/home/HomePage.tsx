@@ -6,7 +6,6 @@ export function HomePage() {
     <>
       <TopBar />
       <section className="intro" aria-labelledby="pageTitle">
-        <img className="streak" src="/hero-streak.svg" alt="" />
         <div className="wrap">
           <p className="eyebrow">Discovery workshops</p>
           <h1 id="pageTitle">Map how the work runs today. <em>Then find what to automate.</em></h1>

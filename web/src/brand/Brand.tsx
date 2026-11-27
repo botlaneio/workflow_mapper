@@ -1,7 +1,9 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import type { OrgConfig } from "@shared/types";
 
-const fallback: OrgConfig = {
+type ClientBrand = Omit<OrgConfig, "team">;
+
+const fallback: ClientBrand = {
   id: "botlane",
   name: "botLane",
   productName: "Workflow Mapper",
@@ -16,17 +18,21 @@ const fallback: OrgConfig = {
     buttonHover: "#1C3250",
     page: "#FFFFFF",
   },
-  logo: { ring: "#b5adff", node: "#ff8a1f", eye: "#b5adff" },
+  assets: {
+    logoHorizontal: "/brand/botlane-horizontal.svg",
+    logoIcon: "/brand/botlane-icon.svg",
+    favicon: "/brand/favicon.svg",
+  },
 };
 
-const BrandContext = createContext<OrgConfig>(fallback);
+const BrandContext = createContext<ClientBrand>(fallback);
 
 export function BrandProvider({ children }: { children: ReactNode }) {
-  const [org, setOrg] = useState<OrgConfig>(fallback);
+  const [org, setOrg] = useState<ClientBrand>(fallback);
   useEffect(() => {
     fetch("/api/public/brand")
       .then((res) => res.json())
-      .then((body: { org?: OrgConfig }) => {
+      .then((body: { org?: ClientBrand }) => {
         if (!body.org) return;
         setOrg(body.org);
         const root = document.documentElement;
@@ -38,9 +44,8 @@ export function BrandProvider({ children }: { children: ReactNode }) {
         root.style.setProperty("--accent", colors.accent);
         root.style.setProperty("--btn-hover", colors.buttonHover);
         root.style.setProperty("--bg", colors.page);
-        root.style.setProperty("--logo-ring", body.org.logo.ring);
-        root.style.setProperty("--logo-node", body.org.logo.node);
-        root.style.setProperty("--logo-eye", body.org.logo.eye);
+        const icon = document.querySelector<HTMLLinkElement>("link[rel='icon']");
+        if (icon && body.org.assets?.favicon) icon.href = body.org.assets.favicon;
       })
       .catch(() => {
         /* keep the botLane defaults already in the stylesheet */
@@ -49,6 +54,6 @@ export function BrandProvider({ children }: { children: ReactNode }) {
   return <BrandContext.Provider value={org}>{children}</BrandContext.Provider>;
 }
 
-export function useBrand(): OrgConfig {
+export function useBrand(): ClientBrand {
   return useContext(BrandContext);
 }

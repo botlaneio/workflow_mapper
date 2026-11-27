@@ -326,18 +326,9 @@ function ChapterBody({
       {chapter === 5 ? (
         <div className="stack">
           <Bound label="What would change" ytext={snap.whatGoodText} focusKey="field:good" multiline />
-          {showEstimates && revealed ? (
-            <section className="panel" aria-label="Rough estimate">
-              <p className="eyebrow">Rough estimate</p>
-              {revealed.total ? <p className="stat"><span className="v">{revealed.total}</span></p> : null}
-              <ul>
-                {revealed.top.map((item) => <li key={item.title}>{item.title}{item.hours ? ` · ${item.hours}` : ""}</li>)}
-              </ul>
-              <p className="hint">{ILLUSTRATIVE_NOTE} {revealed.note}</p>
-            </section>
-          ) : null}
         </div>
       ) : null}
+      {showEstimates && revealed ? <RevealedSummary revealed={revealed} /> : null}
       {showMap ? (
         <>
           <StatsStrip snap={snap} recoverable={showEstimates && revealed?.total ? revealed.total : undefined} />
@@ -362,6 +353,29 @@ function ChapterBody({
         </>
       ) : null}
     </>
+  );
+}
+
+function RevealedSummary({ revealed }: { revealed: { total: string; note: string; top: { title: string; hours: string }[]; areas: { name: string; hours: string }[] } }) {
+  return (
+    <section className="panel" aria-label="Rough estimate">
+      <p className="eyebrow">Rough estimate</p>
+      {revealed.total ? <p className="stat"><span className="v">{revealed.total}</span></p> : null}
+      {revealed.top.length ? (
+        <ol>
+          {revealed.top.map((item) => <li key={item.title}>{item.title}{item.hours ? ` · ${item.hours}` : ""}</li>)}
+        </ol>
+      ) : null}
+      {revealed.areas.length ? (
+        <>
+          <p className="eyebrow">Solution areas</p>
+          <ul>
+            {revealed.areas.map((area) => <li key={area.name}>{area.name}{area.hours ? ` · ${area.hours}` : ""}</li>)}
+          </ul>
+        </>
+      ) : null}
+      <p className="hint">{ILLUSTRATIVE_NOTE} {revealed.note}</p>
+    </section>
   );
 }
 

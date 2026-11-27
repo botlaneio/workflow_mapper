@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { BOTLANE_ORG } from "../../shared/src/catalog";
+import { BOTLANE_ORG, publicOrg } from "../../shared/src/catalog";
 import { hmacSign, readableCode, safeEqual, secretToken, sha256Hex } from "../../shared/src/bytes";
 import type { Catalog, OrgConfig, ProcessTemplate } from "../../shared/src/types";
 import { clearedCookie, cookieHeader, currentUser, issueCookie, passwordsMatch, sameOrigin } from "./auth";
@@ -22,7 +22,7 @@ app.get("/api/public/brand", async (c) => {
   const org = await loadOrg(c.env);
   const catalog = await loadCatalog(c.env, org.id);
   return c.json({
-    org,
+    org: publicOrg(org),
     flags: catalog.flagOrder.map((key) => {
       const flag = catalog.flags[key];
       return { key: flag.key, label: flag.label, icon: flag.icon };

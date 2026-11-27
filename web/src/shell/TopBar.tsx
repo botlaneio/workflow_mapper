@@ -12,13 +12,13 @@ export function TopBar({
   people?: Person[];
   href?: string;
 }) {
-  const { wordmark, productName } = useBrand();
+  const { wordmark, productName, assets } = useBrand();
   const label = status === "live" ? "Live" : status === "reconnecting" ? "Reconnecting…" : status === "closed" ? "Disconnected" : status === "connecting" ? "Connecting…" : "";
   return (
     <header className="top">
       <div className="wrap top-inner">
         <Link className="brand" to={href} aria-label={`${wordmark} ${productName}`}>
-          <Logo wordmark={wordmark} />
+          <Logo src={assets.logoHorizontal} wordmark={wordmark} />
           <small>{productName}</small>
         </Link>
         {people.length ? (
