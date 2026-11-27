@@ -1,0 +1,37 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "workflow-mapper",
+  "main": "./worker/src/index.ts",
+  "compatibility_date": "2026-11-26",
+  "compatibility_flags": ["nodejs_compat"],
+  "upload_source_maps": true,
+  "vars": {
+    "AUTH_MODE": "access",
+    "PUBLIC_ORIGIN": "https://map.botlane.io"
+  },
+  "assets": {
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*"]
+  },
+  "durable_objects": {
+    "bindings": [{ "name": "SESSION_ROOM", "class_name": "SessionRoom" }]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["SessionRoom"] }],
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "workflow-mapper",
+      "database_id": "00000000-0000-0000-0000-000000000000",
+      "migrations_dir": "worker/migrations"
+    }
+  ],
+  "env": {
+    "preview": {
+      "name": "workflow-mapper-preview",
+      "vars": {
+        "AUTH_MODE": "access",
+        "PUBLIC_ORIGIN": "https://map.botlane.io"
+      }
+    }
+  }
+}

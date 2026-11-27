@@ -1,0 +1,5 @@
+# Local only. Copy to .dev.vars. Never commit .dev.vars. Never set AUTH_MODE=dev on a deployed Worker.
+AUTH_MODE=dev
+AUTH_SECRET=replace-with-a-long-random-string
+DEV_LOGIN_PASSWORD=replace-with-a-local-password
+PUBLIC_ORIGIN=http://127.0.0.1:5173
