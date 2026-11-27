@@ -14,6 +14,7 @@ import {
   roleName,
   setChapter,
   setFollowMe,
+  setReveal,
   setProcessName,
   setRunUnit,
   setRunsPerWeek,
@@ -29,6 +30,7 @@ import { api, ApiError, type AuthUser } from "../lib/api";
 import { Icon } from "../lib/icons";
 import { useRoom } from "../lib/room";
 import { YTextField } from "../lib/YText";
+import { RevealStage } from "../map/Reveal";
 import { metricsOf, StatsStrip } from "../map/StatsStrip";
 import { Swimlane, useFreshIds } from "../map/Swimlane";
 import { OpportunityPanel } from "./OpportunityPanel";
@@ -43,6 +45,8 @@ interface SessionMeta {
   status: string;
   expiresAt: string;
   linkEnabled: boolean;
+  summaryUrl?: string;
+  summaryEnabled?: boolean;
 }
 
 export default function WorkshopPage() {
@@ -54,6 +58,25 @@ export default function WorkshopPage() {
   const [selected, setSelected] = useState("");
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [crmBusy, setCrmBusy] = useState(false);
+  const [crmNote, setCrmNote] = useState("");
+  const [crmOk, setCrmOk] = useState(true);
+
+  async function sendCrm() {
+    if (crmBusy) return;
+    setCrmBusy(true);
+    setCrmNote("");
+    try {
+      const body = await api<{ ok: boolean; message: string }>(`/api/presenter/sessions/${id}/crm`, { method: "POST", body: "{}" });
+      setCrmOk(body.ok !== false);
+      setCrmNote(body.message);
+    } catch (err) {
+      setCrmOk(false);
+      setCrmNote(err instanceof Error ? err.message : "Not sent to CRM");
+    } finally {
+      setCrmBusy(false);
+    }
+  }
 
   useEffect(() => {
     api<{ user: AuthUser }>("/api/auth/me")
@@ -195,6 +218,19 @@ export default function WorkshopPage() {
                 <label className="switch"><input type="checkbox" checked={snap?.followMe ?? true} onChange={(event) => setFollowMe(room.shared, event.target.checked)} /> Follow-me</label>
                 <label className="switch"><input type="checkbox" checked={room.showEstimates} onChange={(event) => room.setEstimates(event.target.checked)} /> Show hour estimates to the client</label>
                 <div className="row">
+                  <button className="btn primary" type="button" onClick={() => { if (!snap) return; setChapter(room.shared, 5, 0); setReveal(room.shared, true); }}>Play the reveal</button>
+                  <button className="btn" type="button" onClick={() => snap && setReveal(room.shared, false)}>Back to today</button>
+                </div>
+                <div className="row">
+                  <button className="btn" type="button" onClick={() => meta.summaryUrl && navigator.clipboard.writeText(meta.summaryUrl).then(() => setNotice("Summary link copied")).catch(() => setNotice(meta.summaryUrl || ""))}>Copy summary link</button>
+                  <button className="btn" type="button" onClick={() => post(`/api/presenter/sessions/${id}/summary`, { enabled: meta.summaryEnabled === false })}>{meta.summaryEnabled === false ? "Turn summary on" : "Turn summary off"}</button>
+                  <button className="btn" type="button" onClick={() => api(`/api/presenter/sessions/${id}/proposals`, { method: "POST", body: JSON.stringify({ kind: "new" }) }).then(() => setNotice("Sent to admin for approval")).catch((err) => setError(err.message))}>Save as template</button>
+                  <button className="btn" type="button" onClick={() => api(`/api/presenter/sessions/${id}/proposals`, { method: "POST", body: JSON.stringify({ kind: "improvement" }) }).then(() => setNotice("Suggestion sent for approval")).catch((err) => setError(err.message))}>Suggest improvement</button>
+                  <button className="btn" type="button" disabled={crmBusy} onClick={() => void sendCrm()}>{crmBusy ? "Sending…" : "Send to CRM"}</button>
+                  {!crmOk && crmNote ? <button className="btn" type="button" disabled={crmBusy} onClick={() => void sendCrm()}>Retry</button> : null}
+                </div>
+                {crmNote ? <p role={crmOk ? "status" : "alert"}>{crmNote}</p> : null}
+                <div className="row">
                   <button className="btn" type="button" onClick={() => post(`/api/presenter/sessions/${id}/link`, { enabled: !meta.linkEnabled })}>{meta.linkEnabled ? "Turn link off" : "Turn link on"}</button>
                   <button className="btn danger" type="button" onClick={() => post(`/api/presenter/sessions/${id}/end`)}>End session</button>
                 </div>
@@ -226,6 +262,14 @@ export default function WorkshopPage() {
               </div>
             </section>
             <StatsStrip snap={snap} recoverable={model && snap.runsPerWeek ? (model.totalHours > 0 ? `~${model.totalHours < 10 ? model.totalHours.toFixed(1).replace(/\.0$/, "") : Math.round(model.totalHours)} h` : "—") : "Add runs"} />
+            {snap.reveal ? (
+              <div style={{ marginTop: 20 }}>
+                <RevealStage playing steps={snap.steps} roles={snap.roles} litIds={model?.ranked.map((item) => item.stepId) ?? []} flagStyle={(flag) => {
+                  const def = catalog.flags[flag as keyof Catalog["flags"]];
+                  return { icon: def?.icon ?? "circle", label: def?.label ?? flag };
+                }} />
+              </div>
+            ) : null}
             <section className="panel" style={{ marginTop: 20 }} aria-labelledby="mapTitle">
               <div className="panel-head">
                 <h2 id="mapTitle">Current process map. <span>Who does what, and where work waits.</span></h2>

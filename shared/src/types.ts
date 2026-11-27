@@ -60,6 +60,19 @@ export interface OrgColors {
   page: string;
 }
 
+export interface OrgAssets {
+  logoHorizontal: string;
+  logoIcon: string;
+  favicon: string;
+}
+
+export interface TeamMember {
+  id: string;
+  email: string;
+  name: string;
+  role: "admin" | "presenter";
+}
+
 export interface OrgConfig {
   id: string;
   name: string;
@@ -67,7 +80,11 @@ export interface OrgConfig {
   domain: string;
   wordmark: string;
   colors: OrgColors;
-  logo: { ring: string; node: string; eye: string };
+  assets: OrgAssets;
+  /** Presenter sign-in allowlist. Not sent on the public brand response. */
+  team: TeamMember[];
+  /** Comp AI REST base, including /rest. Server reads this; the key stays a Worker secret. */
+  crmBaseUrl?: string;
 }
 
 export interface PublicBrand {

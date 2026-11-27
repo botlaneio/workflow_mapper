@@ -9,9 +9,6 @@
   --accent: #5333f5;
   --btn-hover: #1c3250;
   --warn: #d9402f;
-  --logo-ring: #b5adff;
-  --logo-node: #ff8a1f;
-  --logo-eye: #b5adff;
   --shadow: 0 1px 0 #061b310d, 0 16px 44px -18px #35436655;
   --font: "Instrument Sans Variable", "Instrument Sans", Arial, Helvetica, sans-serif;
 }
@@ -163,8 +160,8 @@ input[type="text"], input[type="password"], input[type="email"], input[type="num
 }
 textarea { resize: vertical; min-height: 72px; }
 .intro { position: relative; overflow: hidden; border-bottom: 1px solid var(--hair); }
-.intro .streak { position: absolute; z-index: 0; top: -55%; left: calc(50% + 120px); height: 230%; width: auto; max-width: none; pointer-events: none; }
 .intro .wrap { position: relative; z-index: 1; padding-top: 48px; padding-bottom: 52px; }
+.logo { display: block; height: 36px; width: auto; }
 .intro p { max-width: 540px; color: var(--muted); font-size: 17px; }
 .rail { display: flex; gap: 8px; overflow-x: auto; padding: 14px 0; }
 .rail button {
@@ -241,6 +238,11 @@ textarea { resize: vertical; min-height: 72px; }
 }
 .card.sel { border-color: var(--ink); box-shadow: 0 0 0 3px #061b3118; }
 .card.enter { animation: card-in 0.35s ease; }
+.card, .wait { transition: transform 0.6s ease, opacity 0.6s ease; }
+.card.auto { opacity: 0.45; transform: scale(0.94); }
+.card.lit { opacity: 1; transform: scale(1.04); }
+.wait.shrink { opacity: 0.35; transform: translate(-50%, -50%) scale(0.6); }
+.reveal-caption { display: flex; justify-content: space-between; gap: 12px; align-items: baseline; margin-bottom: 8px; }
 @keyframes card-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
 .card .tag { position: absolute; top: 8px; right: 8px; width: 8px; height: 8px; border-radius: 2px; }
 .card .t { font-weight: 600; font-size: 13px; line-height: 1.25; padding-right: 12px; }
@@ -361,8 +363,8 @@ textarea { resize: vertical; min-height: 72px; }
 .q-nav { display: flex; justify-content: space-between; gap: 8px; margin-top: 18px; }
 .error { color: var(--warn); }
 @media (max-width: 980px) { .lower { grid-template-columns: 1fr; } .wide { grid-column: span 1; } }
-@media (max-width: 760px) { .intro .streak { left: 45%; opacity: 0.55; } .brand small { display: none; } }
+@media (max-width: 760px) { .brand small { display: none; } }
 @media (prefers-reduced-motion: reduce) {
   .card.enter { animation: none; }
-  .tpl, .btn, .chip, .card { transition: none; }
+  .tpl, .btn, .chip, .card, .wait { transition: none; }
 }

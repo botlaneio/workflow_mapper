@@ -8,6 +8,10 @@ export interface Env {
   PUBLIC_ORIGIN?: string;
   CF_ACCESS_TEAM_DOMAIN?: string;
   CF_ACCESS_AUD?: string;
+  /** "noop" (default) or "mock". Ignored when CRM_API_KEY is set. */
+  CRM_ADAPTER?: string;
+  /** Comp AI key. Server-only. When unset, the noop or mock adapter is used. */
+  CRM_API_KEY?: string;
 }
 
 export interface UserRow {
@@ -32,6 +36,8 @@ export interface SessionRow {
   process_name: string;
   status: "live" | "completed" | "archived";
   link_enabled: number;
+  summary_token?: string | null;
+  summary_enabled?: number | null;
   created_at: string;
   updated_at: string;
   owner_name?: string;

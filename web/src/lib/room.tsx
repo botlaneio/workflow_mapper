@@ -20,6 +20,7 @@ export function useRoom(options: { url: string; role: "presenter" | "client"; na
   const [people, setPeople] = useState<Person[]>([]);
   const [showEstimates, setShowEstimates] = useState(false);
   const [revealed, setRevealed] = useState<RevealedEstimates | null>(null);
+  const [spotlight, setSpotlight] = useState<string[]>([]);
   const wsRef = useRef<WebSocket | null>(null);
   const syncedRef = useRef(false);
   const nameRef = useRef(options.name);
@@ -103,6 +104,7 @@ export function useRoom(options: { url: string; role: "presenter" | "client"; na
           key?: string;
           value?: boolean;
           estimates?: RevealedEstimates | null;
+          titles?: string[];
         };
         if ((msg.t === "sync-step2" || msg.t === "update") && msg.doc && msg.update) {
           if (msg.doc === "private" && options.role !== "presenter") return;
@@ -132,6 +134,7 @@ export function useRoom(options: { url: string; role: "presenter" | "client"; na
         } else if (msg.t === "presence") setPeople(msg.people ?? []);
         else if (msg.t === "flag" && msg.key === "showEstimates") setShowEstimates(msg.value === true);
         else if (msg.t === "revealed") setRevealed(msg.estimates ?? null);
+        else if (msg.t === "spotlight") setSpotlight(msg.titles ?? []);
       };
       socket.onclose = () => {
         syncedRef.current = false;
@@ -169,5 +172,5 @@ export function useRoom(options: { url: string; role: "presenter" | "client"; na
     }
   };
 
-  return { shared, priv, status, synced, version, people, showEstimates, revealed, sendFocus, setEstimates };
+  return { shared, priv, status, synced, version, people, showEstimates, revealed, spotlight, sendFocus, setEstimates };
 }

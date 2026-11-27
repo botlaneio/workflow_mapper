@@ -16,6 +16,7 @@ export function Swimlane({
   flagStyle,
   focusNames,
   fresh,
+  reveal,
 }: {
   steps: StepSnap[];
   roles: RoleSnap[];
@@ -25,6 +26,7 @@ export function Swimlane({
   flagStyle: (flag: string) => { icon: string; label: string; color?: string };
   focusNames?: Record<string, { name: string; color: string }>;
   fresh?: Set<string>;
+  reveal?: { phase: "today" | "after"; litIds: string[] };
 }) {
   if (!steps.length) {
     return <div className="scroller"><p className="hint" style={{ padding: 32, textAlign: "center" }}>No steps yet. Add the first step as the client describes it.</p></div>;
@@ -48,7 +50,7 @@ export function Swimlane({
     counts[lane] = (counts[lane] ?? 0) + 1;
   });
   const wires: { d: string; slow: boolean }[] = [];
-  const pills: { left: number; top: number; label: string; slow: boolean }[] = [];
+  const pills: { left: number; top: number; label: string; slow: boolean; shrink?: boolean }[] = [];
   for (let i = 0; i < pos.length - 1; i++) {
     const a = pos[i]!;
     const b = pos[i + 1]!;
@@ -63,7 +65,8 @@ export function Swimlane({
       ? `M${x1} ${y1} H${x2}`
       : `M${x1} ${y1} H${mid - 6} Q${mid} ${y1} ${mid} ${y1 + Math.sign(y2 - y1) * 6} V${y2 - Math.sign(y2 - y1) * 6} Q${mid} ${y2} ${mid + 6} ${y2} H${x2}`;
     wires.push({ d, slow });
-    if (wait > 0) pills.push({ left: mid, top: (y1 + y2) / 2, label: formatMinutes(wait * 60), slow });
+    const shrink = reveal?.phase === "after" && steps[i]!.flags.length > 0;
+    if (wait > 0) pills.push({ left: mid, top: (y1 + y2) / 2, label: formatMinutes(wait * 60), slow: slow && !shrink, shrink });
   }
   return (
     <div className="scroller" tabIndex={0} aria-label="Process map. Scroll sideways for more steps.">
@@ -85,25 +88,27 @@ export function Swimlane({
           {wires.map((wire, index) => <path key={index} d={wire.d} className={wire.slow ? "slow" : ""} markerEnd="url(#arr)" />)}
         </svg>
         {pills.map((pill, index) => (
-          <div key={index} className={`wait${pill.slow ? " slow" : ""}`} style={{ left: pill.left, top: pill.top }}>{pill.label}</div>
+          <div key={index} className={`wait${pill.slow ? " slow" : ""}${pill.shrink ? " shrink" : ""}`} style={{ left: pill.left, top: pill.top }}>{pill.label}</div>
         ))}
         {steps.map((step, index) => {
           const color = areaColor?.(step);
           const meta = [step.tool, positive(step.minutes) ? formatMinutes(step.minutes) : ""].filter(Boolean).join(" · ");
           const mark = toolIcon(step.tool);
           const who = focusNames?.[step.id];
+          const automated = reveal?.phase === "after" && step.flags.length > 0;
+          const lit = reveal?.phase === "after" && reveal.litIds.includes(step.id);
           return (
             <button
               key={step.id}
               type="button"
-              className={`card${selectedId === step.id ? " sel" : ""}${fresh?.has(step.id) ? " enter" : ""}`}
+              className={`card${selectedId === step.id ? " sel" : ""}${fresh?.has(step.id) ? " enter" : ""}${automated ? " auto" : ""}${lit ? " lit" : ""}`}
               style={{ left: pos[index]!.x, top: pos[index]!.y }}
               onClick={() => onSelect?.(step.id)}
               aria-label={`Step ${index + 1}, ${step.title || "Untitled step"}`}
             >
               {color ? <span className="tag" style={{ background: color }} aria-hidden="true" /> : null}
               {who ? <span className="cursor-chip" style={{ ["--c" as string]: who.color, left: 8, top: 0 }}>{who.name}</span> : null}
-              <span className="t"><em style={{ color: "var(--muted)", fontStyle: "normal", marginRight: 5 }}>{index + 1}</em>{step.title || "Untitled step"}</span>
+              <span className="t"><em style={{ color: "var(--muted)", fontStyle: "normal", marginRight: 5 }}>{index + 1}</em>{automated ? "Automated · " : ""}{step.title || "Untitled step"}</span>
               <span className="m">
                 <span className="tool" style={{ display: "inline-flex", gap: 4, alignItems: "center", overflow: "hidden" }}>
                   {mark?.startsWith("brand:") ? <BrandMark id={mark.slice(6)} /> : mark ? <Icon name={mark} size={14} /> : null}

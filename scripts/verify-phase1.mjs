@@ -124,13 +124,14 @@ while (Date.now() < waitUntil) {
 check("edit reached the client", latency !== null);
 check("edit arrived in under 300ms", latency !== null && latency < 300, latency === null ? "timeout" : `${Math.round(latency)}ms`);
 const hidden = client.frames.map(inflate).join("\n");
-for (const needle of ["SENTINEL_PRIVATE_NOTE_zx91", "SENTINEL_PRICE_HINT_qq", "areaOverrides", "pricingHint", "pass warm ones", "What breaks when the person", "h/week"]) {
+for (const needle of ["SENTINEL_PRIVATE_NOTE_zx91", "SENTINEL_PRICE_HINT_qq", "areaOverrides", "pricingHint", "pass warm ones", "What breaks when the person", "h/week", "Business Operations", "Connect the tools"]) {
   check(`hidden from client: ${needle}`, !hidden.includes(needle));
 }
 send(presenter.ws, { t: "set-flag", key: "showEstimates", value: true });
 await new Promise((resolve) => setTimeout(resolve, 300));
 const revealed = client.frames.map(inflate).join("\n");
 check("revealed hours reach the client", revealed.includes("h/week"));
+check("revealed solution-area names reach the client", revealed.includes("Business Operations"));
 check("reveal still hides the private note", !revealed.includes("SENTINEL_PRIVATE_NOTE_zx91"));
 check("reveal still hides the suggested fix", !revealed.includes("Connect the tools"));
 presenter.ws.close();

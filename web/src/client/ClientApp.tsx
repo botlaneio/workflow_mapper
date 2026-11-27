@@ -21,6 +21,7 @@ import { api } from "../lib/api";
 import { Icon } from "../lib/icons";
 import { useRoom, type Person } from "../lib/room";
 import { YTextField } from "../lib/YText";
+import { RevealStage } from "../map/Reveal";
 import { StatsStrip } from "../map/StatsStrip";
 import { Swimlane, useFreshIds } from "../map/Swimlane";
 import { TopBar } from "../shell/TopBar";
@@ -216,6 +217,8 @@ function ClientSession({ sessionId, code, token, name }: { sessionId: string; co
             people={room.people}
             revealed={room.revealed}
             showEstimates={room.showEstimates}
+            reveal={snap.reveal}
+            litIds={snap.steps.filter((step) => room.spotlight.includes(step.title)).map((step) => step.id)}
             selfName={name}
           />
         )}
@@ -242,6 +245,8 @@ function ChapterBody({
   people,
   revealed,
   showEstimates,
+  reveal,
+  litIds,
   selfName,
 }: {
   snap: SharedSnap;
@@ -253,6 +258,8 @@ function ChapterBody({
   people: Person[];
   revealed: { total: string; note: string; top: { title: string; hours: string }[]; areas: { name: string; hours: string }[] } | null;
   showEstimates: boolean;
+  reveal: boolean;
+  litIds: string[];
   selfName: string;
 }) {
   const step = snap.steps[prompt];
@@ -326,19 +333,16 @@ function ChapterBody({
       {chapter === 5 ? (
         <div className="stack">
           <Bound label="What would change" ytext={snap.whatGoodText} focusKey="field:good" multiline />
-          {showEstimates && revealed ? (
-            <section className="panel" aria-label="Rough estimate">
-              <p className="eyebrow">Rough estimate</p>
-              {revealed.total ? <p className="stat"><span className="v">{revealed.total}</span></p> : null}
-              <ul>
-                {revealed.top.map((item) => <li key={item.title}>{item.title}{item.hours ? ` · ${item.hours}` : ""}</li>)}
-              </ul>
-              <p className="hint">{ILLUSTRATIVE_NOTE} {revealed.note}</p>
-            </section>
-          ) : null}
         </div>
       ) : null}
-      {showMap ? (
+      {showEstimates && revealed ? <RevealedSummary revealed={revealed} /> : null}
+      {reveal ? (
+        <RevealStage playing steps={snap.steps} roles={snap.roles} litIds={litIds} flagStyle={(flag) => {
+          const def = PUBLIC_FLAGS.find((item) => item.key === flag);
+          return { icon: def?.icon ?? "circle", label: def?.label ?? flag };
+        }} />
+      ) : null}
+      {showMap && !reveal ? (
         <>
           <StatsStrip snap={snap} recoverable={showEstimates && revealed?.total ? revealed.total : undefined} />
           <div style={{ marginTop: 16 }}>
@@ -362,6 +366,29 @@ function ChapterBody({
         </>
       ) : null}
     </>
+  );
+}
+
+function RevealedSummary({ revealed }: { revealed: { total: string; note: string; top: { title: string; hours: string }[]; areas: { name: string; hours: string }[] } }) {
+  return (
+    <section className="panel" aria-label="Rough estimate">
+      <p className="eyebrow">Rough estimate</p>
+      {revealed.total ? <p className="stat"><span className="v">{revealed.total}</span></p> : null}
+      {revealed.top.length ? (
+        <ol>
+          {revealed.top.map((item) => <li key={item.title}>{item.title}{item.hours ? ` · ${item.hours}` : ""}</li>)}
+        </ol>
+      ) : null}
+      {revealed.areas.length ? (
+        <>
+          <p className="eyebrow">Solution areas</p>
+          <ul>
+            {revealed.areas.map((area) => <li key={area.name}>{area.name}{area.hours ? ` · ${area.hours}` : ""}</li>)}
+          </ul>
+        </>
+      ) : null}
+      <p className="hint">{ILLUSTRATIVE_NOTE} {revealed.note}</p>
+    </section>
   );
 }
 

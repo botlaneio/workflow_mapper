@@ -72,6 +72,7 @@ export default function SessionsPage() {
           <div>
             <p className="eyebrow">Sessions</p>
             <h1>Live workshops. <em>{user ? user.name : ""}</em></h1>
+            {user?.role === "admin" ? <p><Link className="btn" to="/app/library">Library admin</Link></p> : null}
           </div>
         </div>
         {error ? <p className="error" role="alert">{error}</p> : null}
