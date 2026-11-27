@@ -8,7 +8,8 @@
     "typecheck": "tsc -p tsconfig.web.json --noEmit && tsc -p tsconfig.worker.json --noEmit",
     "test": "vitest run",
     "test:live": "node scripts/verify-phase1.mjs",
-    "deploy:preview": "vite build && wrangler deploy --env preview"
+    "deploy:preview": "vite build && wrangler deploy --env preview",
+    "deploy:prod": "vite build && wrangler deploy"
   },
   "dependencies": {
     "@fontsource-variable/instrument-sans": "^5.3.0",

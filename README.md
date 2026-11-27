@@ -67,7 +67,7 @@ Admins open **Library admin** to add a template, archive one, or approve a prese
 
 ## Deploy to a preview Worker
 
-Do not deploy to production. There is no production environment in this repo.
+Use the preview Worker to try changes before production (see below).
 
 1. Create a preview D1 database and put its id in `wrangler.jsonc` under `env.preview` (add a `d1_databases` block there; preview does not inherit a placeholder id safely).
 2. Apply migrations to that database: `npx wrangler d1 migrations apply workflow-mapper --env preview --remote`.
@@ -92,6 +92,26 @@ npm run deploy:preview
 `deploy:preview` runs `vite build` and `wrangler deploy --env preview`. The first boot of an empty database seeds the sample library. Cloudflare Access should allow the same addresses as `team` in the org config. Today that list is only `admin@botlane.io`. The canonical domain is `map.botlane.io`, set on the org and as `PUBLIC_ORIGIN`, and join links still follow the host you are actually using.
 
 This environment was not deployed from here: there are no Cloudflare credentials in this workspace.
+
+## Deploy to map.botlane.io (production)
+
+The top-level Worker `workflow-mapper` is bound to `map.botlane.io` as a Workers Custom Domain (`routes` in `wrangler.jsonc`, `workers_dev` off). The first deploy creates the proxied DNS record and certificate for `map.botlane.io` in the botlane.io zone. It does not touch the apex, `www`, `ops`, or the `bot-central` Worker. Do these in order, all from this repo after `npx wrangler login`:
+
+1. `npx wrangler d1 create workflow-mapper` and paste the returned id into the top-level `d1_databases[0].database_id`.
+2. `npx wrangler d1 migrations apply workflow-mapper --remote`.
+3. Zero Trust, Access, Applications: add a self-hosted app on `map.botlane.io` for the paths `/app/*`, `/api/presenter/*`, `/api/auth/*`, with a policy that allows `admin@botlane.io`. Copy its Application Audience (AUD) tag.
+4. Secrets (each prompts for the value; never paste them anywhere else):
+
+```bash
+npx wrangler secret put AUTH_SECRET
+npx wrangler secret put CF_ACCESS_TEAM_DOMAIN
+npx wrangler secret put CF_ACCESS_AUD
+npx wrangler secret put CRM_API_KEY
+```
+
+5. `npm run deploy:prod`. This is the step that makes `map.botlane.io` live.
+
+To take it down, remove the custom domain under Workers & Pages, workflow-mapper, Settings, Domains & Routes (that also removes its DNS record).
 
 ## Layout
 
