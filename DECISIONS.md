@@ -16,7 +16,7 @@ Presence ("Ravi is editing step 3") and a coloured name chip on the focused step
 
 ## Privacy
 
-`showEstimates` is Durable Object storage, not a field in the shared document, so a client cannot flip it by editing the Yjs doc. While it is off, client sockets receive `estimates: null` and no hour totals. When a presenter turns it on, the server sends formatted totals only: a weekly figure, the top step titles, and area names. Factors, suggested fixes, private notes, pricing hints, deal tags, area overrides, and the discovery-question checklist are never included.
+`showEstimates` is Durable Object storage, not a field in the shared document, so a client cannot flip it by editing the Yjs doc. Solo confirmed estimates stay hidden until the presenter turns them on. While they are off, client sockets receive `estimates: null` and no hour totals. When a presenter turns them on, the server sends formatted totals, the top step titles, and the solution-area names (the six public names from the website, for the areas that have hours). Factors, suggested fixes, private notes, pricing hints, deal tags, area overrides, and the discovery-question checklist are never included.
 
 The six solution areas are public brand (they are on the botLane site) and are available from `/api/public/brand` without factors. The mapping of this session's steps onto those areas is presenter-only, so the colour square on a step card is drawn only in the presenter map. Flag labels and icons are public because the client has to choose them. Their factors and fixes live in the catalog row and in `shared/src/catalog.ts`, which the client bundle does not import.
 
@@ -28,11 +28,13 @@ A client cannot change `orgId`, `templateId`, `industry`, or the process name. T
 
 The brief's example URL is `/join/ACME-4821`. A short code in a public path is guessable, so the link is `/join/<code>/<token>`. The code is eight Crockford characters, grouped `XXXX-XXXX`, and is what you read aloud. The token is 32 random bytes, stored as a SHA-256 hash for comparison, and also stored so the presenter can copy the link again. The code alone opens a page that says the link is incomplete. Links expire after 7 days. Ending a session or turning the link off rejects new client sockets. The spoken code is not enough to join.
 
-Join links use the origin of the request, so local and preview links stay on the host you are actually using. The canonical domain remains `map.botlane.io` in the org config and `PUBLIC_ORIGIN`, until Solo confirms it.
+Join links use the origin of the request, so local and preview links stay on the host you are actually using. Solo confirmed the canonical domain is `map.botlane.io`. It stays in the org config and in `PUBLIC_ORIGIN`, so it can still be changed without a code search.
 
 ## Auth
 
-Production and preview use `AUTH_MODE=access`. The Worker verifies the Cloudflare Access JWT against the team JWKS and then requires that email to exist on the org. Local development uses `AUTH_MODE=dev` and a password from `.dev.vars`, checked with a constant-time compare, and sets an HttpOnly cookie. The dev login route is not registered in access mode. Seeded users are `admin@botlane.io` (Solo, admin) and `sales@botlane.io` (presenter). Those addresses are placeholders for the real Google Workspace emails.
+Production and preview use `AUTH_MODE=access`. The Worker verifies the Cloudflare Access JWT against the team JWKS and then requires that email to be on the org's `team` list. Local development uses `AUTH_MODE=dev` and a password from `.dev.vars`, checked with a constant-time compare, and sets an HttpOnly cookie. The dev login route is not registered in access mode.
+
+Solo confirmed the allowlist starts with only `admin@botlane.io` (Solo, admin). Add the next presenter by appending `{ id, email, name, role }` to `team` in the org config. Boot syncs that list into the users table and removes anyone who is no longer on it. The `team` list is not included in the public brand response.
 
 There is no password system in the product. Dev login must not be deployed.
 
@@ -52,9 +54,9 @@ Flags, factors, fixes, and area names are org catalog rows (`catalogs`), copied 
 
 ## Org and brand
 
-Every D1 row that represents a tenant record has `org_id`. The shared document stores `orgId` in meta. botLane is the only seeded org. Brand (wordmark, product name, colours, logo tints, domain) is the org config. The client loads `/api/public/brand` and sets the CSS variables from it. Defaults in the stylesheet match botLane so the first paint is correct.
+Every D1 row that represents a tenant record has `org_id`. The shared document stores `orgId` in meta. botLane is the only seeded org. Brand (wordmark, product name, colours, domain, and the logo file paths) is the org config. The client loads `/api/public/brand` and sets the CSS variables and favicon from it. Defaults in the stylesheet match botLane so the first paint is correct.
 
-The orb and the hero streak are the artwork from the supplied prototype. The brand kit was not in this workspace. They should be replaced with the official files when Solo provides `botlane-brand-kit.zip`. The geometry was not redrawn. The streak is used once, on the team home screen.
+The header uses the brand kit's navy horizontal lockup (`botlane-horizontal-primary-transparent.svg`): the official orb plus the outlined "botLane" wordmark. The favicon is the same navy orb. Those files live under `web/public/brand/` and the org config points at them, so another org can point at its own files. The prototype orb and the orange-pink-purple hero streak are gone. Orange, pink, and purple in the interface are flat tints on chips and area badges. Buttons stay navy `#061B31`. Icons in the UI are Lucide, plus Simple Icons for WhatsApp, Gmail, and Google Sheets. The orb SVG keeps the soft navy shading that is part of the supplied mark. It is not redrawn.
 
 Simple Icons supplies WhatsApp, Gmail, and Google Sheets. Excel, Tally, and IndiaMART are not in the current Simple Icons set, so those tools use a Lucide icon rather than a made-up mark. Instrument Sans is self-hosted. The client view does not call Google Fonts or any other third party. Pages send `noindex` and `no-referrer`.
 

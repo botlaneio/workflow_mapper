@@ -125,8 +125,20 @@ export const BOTLANE_ORG = {
     buttonHover: "#1C3250",
     page: "#FFFFFF",
   },
-  logo: { ring: "#b5adff", node: "#ff8a1f", eye: "#b5adff" },
+  assets: {
+    logoHorizontal: "/brand/botlane-horizontal.svg",
+    logoIcon: "/brand/botlane-icon.svg",
+    favicon: "/brand/favicon.svg",
+  },
+  team: [
+    { id: "user_admin", email: "admin@botlane.io", name: "Solo", role: "admin" as const },
+  ],
 };
+
+export function publicOrg<T extends { team?: unknown }>(org: T): Omit<T, "team"> {
+  const { team: _team, ...rest } = org;
+  return rest;
+}
 
 export function isAreaKey(value: string): value is AreaKey {
   return BOTLANE_CATALOG.areaOrder.includes(value as AreaKey);

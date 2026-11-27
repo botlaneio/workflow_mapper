@@ -21,29 +21,41 @@ async function seed(env: Env): Promise<void> {
   }
   const now = new Date().toISOString();
   const existing = await env.DB.prepare("SELECT id FROM orgs WHERE id = ?").bind(BOTLANE_ORG.id).first();
-  if (existing) return;
+  if (!existing) {
+    await insertLibrary(env, now);
+  } else {
+    await env.DB.prepare("UPDATE orgs SET name = ?, config_json = ? WHERE id = ?")
+      .bind(BOTLANE_ORG.name, JSON.stringify(BOTLANE_ORG), BOTLANE_ORG.id)
+      .run();
+  }
+  await syncTeam(env, now);
+}
 
+async function syncTeam(env: Env, now: string): Promise<void> {
+  const allowed = new Set(BOTLANE_ORG.team.map((member) => member.email.toLowerCase()));
+  for (const member of BOTLANE_ORG.team) {
+    await env.DB.prepare(
+      `INSERT INTO users (id, org_id, email, name, role, created_at)
+       VALUES (?, ?, ?, ?, ?, ?)
+       ON CONFLICT(org_id, email) DO UPDATE SET name = excluded.name, role = excluded.role`,
+    )
+      .bind(member.id, BOTLANE_ORG.id, member.email.toLowerCase(), member.name, member.role, now)
+      .run();
+  }
+  const rows = await env.DB.prepare("SELECT email FROM users WHERE org_id = ?").bind(BOTLANE_ORG.id).all<{ email: string }>();
+  for (const row of rows.results ?? []) {
+    if (!allowed.has(row.email.toLowerCase())) {
+      await env.DB.prepare("DELETE FROM users WHERE org_id = ? AND email = ?").bind(BOTLANE_ORG.id, row.email).run();
+    }
+  }
+}
+
+async function insertLibrary(env: Env, now: string): Promise<void> {
   const statements = [
     env.DB.prepare("INSERT INTO orgs (id, name, config_json, created_at) VALUES (?, ?, ?, ?)").bind(
       BOTLANE_ORG.id,
       BOTLANE_ORG.name,
       JSON.stringify(BOTLANE_ORG),
-      now,
-    ),
-    env.DB.prepare("INSERT INTO users (id, org_id, email, name, role, created_at) VALUES (?, ?, ?, ?, ?, ?)").bind(
-      "user_admin",
-      BOTLANE_ORG.id,
-      "admin@botlane.io",
-      "Solo",
-      "admin",
-      now,
-    ),
-    env.DB.prepare("INSERT INTO users (id, org_id, email, name, role, created_at) VALUES (?, ?, ?, ?, ?, ?)").bind(
-      "user_sales",
-      BOTLANE_ORG.id,
-      "sales@botlane.io",
-      "Sales",
-      "presenter",
       now,
     ),
     env.DB.prepare("INSERT INTO catalogs (org_id, kind, data_json) VALUES (?, 'full', ?)").bind(

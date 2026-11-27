@@ -17,7 +17,7 @@ npm run dev
 
 Open http://127.0.0.1:5173 . `npm run dev` is Vite with the Cloudflare plugin, which runs the Worker, the Durable Object, and local D1 together. That is the local equivalent of `wrangler dev`.
 
-Sign in as `admin@botlane.io` (admin) or `sales@botlane.io` (presenter) with the password from `.dev.vars`. This password exists only when `AUTH_MODE=dev`. Do not deploy with `AUTH_MODE=dev`.
+Sign in as `admin@botlane.io` with the password from `.dev.vars`. That address is the only one on the team allowlist (`team` in the botLane org config). Add another presenter by appending an email there. This password exists only when `AUTH_MODE=dev`. Do not deploy with `AUTH_MODE=dev`.
 
 ## Seed
 
@@ -64,7 +64,7 @@ npx wrangler secret put CF_ACCESS_AUD --env preview
 npm run deploy:preview
 ```
 
-`deploy:preview` runs `vite build` and `wrangler deploy --env preview`. The first boot of an empty database seeds the sample library. Replace `admin@botlane.io` and `sales@botlane.io` with the real Google Workspace addresses that Access will send, or those people cannot sign in.
+`deploy:preview` runs `vite build` and `wrangler deploy --env preview`. The first boot of an empty database seeds the sample library. Cloudflare Access should allow the same addresses as `team` in the org config. Today that list is only `admin@botlane.io`. The canonical domain is `map.botlane.io`, set on the org and as `PUBLIC_ORIGIN`, and join links still follow the host you are actually using.
 
 This environment was not deployed from here: there are no Cloudflare credentials in this workspace.
 
