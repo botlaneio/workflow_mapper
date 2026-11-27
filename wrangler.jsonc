@@ -23,7 +23,7 @@
     {
       "binding": "DB",
       "database_name": "workflow-mapper",
-      "database_id": "00000000-0000-0000-0000-000000000000",
+      "database_id": "3bb5da68-6dd4-4fcd-8334-282b22e9ed0e",
       "migrations_dir": "worker/migrations"
     }
   ],
