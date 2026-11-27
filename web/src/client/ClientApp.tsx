@@ -21,6 +21,7 @@ import { api } from "../lib/api";
 import { Icon } from "../lib/icons";
 import { useRoom, type Person } from "../lib/room";
 import { YTextField } from "../lib/YText";
+import { RevealStage } from "../map/Reveal";
 import { StatsStrip } from "../map/StatsStrip";
 import { Swimlane, useFreshIds } from "../map/Swimlane";
 import { TopBar } from "../shell/TopBar";
@@ -216,6 +217,8 @@ function ClientSession({ sessionId, code, token, name }: { sessionId: string; co
             people={room.people}
             revealed={room.revealed}
             showEstimates={room.showEstimates}
+            reveal={snap.reveal}
+            litIds={snap.steps.filter((step) => room.spotlight.includes(step.title)).map((step) => step.id)}
             selfName={name}
           />
         )}
@@ -242,6 +245,8 @@ function ChapterBody({
   people,
   revealed,
   showEstimates,
+  reveal,
+  litIds,
   selfName,
 }: {
   snap: SharedSnap;
@@ -253,6 +258,8 @@ function ChapterBody({
   people: Person[];
   revealed: { total: string; note: string; top: { title: string; hours: string }[]; areas: { name: string; hours: string }[] } | null;
   showEstimates: boolean;
+  reveal: boolean;
+  litIds: string[];
   selfName: string;
 }) {
   const step = snap.steps[prompt];
@@ -329,7 +336,13 @@ function ChapterBody({
         </div>
       ) : null}
       {showEstimates && revealed ? <RevealedSummary revealed={revealed} /> : null}
-      {showMap ? (
+      {reveal ? (
+        <RevealStage playing steps={snap.steps} roles={snap.roles} litIds={litIds} flagStyle={(flag) => {
+          const def = PUBLIC_FLAGS.find((item) => item.key === flag);
+          return { icon: def?.icon ?? "circle", label: def?.label ?? flag };
+        }} />
+      ) : null}
+      {showMap && !reveal ? (
         <>
           <StatsStrip snap={snap} recoverable={showEstimates && revealed?.total ? revealed.total : undefined} />
           <div style={{ marginTop: 16 }}>

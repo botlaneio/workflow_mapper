@@ -21,9 +21,9 @@ Sign in as `admin@botlane.io` with the password from `.dev.vars`. That address i
 
 ## Seed
 
-The manufacturing library, the botLane org, the flag catalog, and the two team users are inserted on first boot if the org row is missing. Restarting `npm run dev` against an empty local D1 is enough.
+The manufacturing library, the botLane org, the flag catalog, and the team allowlist are inserted on first boot if the org row is missing. Restarting `npm run dev` against an empty local D1 is enough. The allowlist is re-synced on later boots.
 
-The same schema is in `worker/migrations/0001_init.sql` for a real database:
+The schema is in `worker/migrations/` (`0001_init.sql` and `0002_phase2.sql`) for a real database:
 
 ```bash
 npx wrangler d1 migrations apply workflow-mapper --local
@@ -31,13 +31,24 @@ npx wrangler d1 migrations apply workflow-mapper --local
 
 Local data lives under `.wrangler/` and is gitignored. The twelve manufacturing templates are labelled **Sample** on the session picker. They contain no client results, quotes, or statistics. Hour figures stay empty until someone types them, and every estimate is marked "Rough estimate for discussion, not a result."
 
-Check the phase 1 behaviour, including the client WebSocket privacy proof:
+Check the live session and the phase 2 close:
 
 ```bash
 npm test
 npm run dev
 node scripts/verify-phase1.mjs
+node scripts/verify-phase2.mjs
 ```
+
+`verify-phase2.mjs` checks the summary payload and the client socket for private fields, and runs Lighthouse on the client view and the summary page.
+
+## After the call
+
+The presenter can play the before/after reveal, copy a summary link (`/s/<token>`), turn that link off, download a PDF, and send the map to CRM. The summary link expires with the session, has no trackers, and is built from a server-filtered payload: the map, pains in the client's words, solution-area names, and rough hours. It does not include private notes, pricing hints, factors, or suggested-fix sentences.
+
+CRM uses `CRM_ADAPTER`. The default is `noop`, which does not call the network. `mock` only remembers the last push in the local Worker. The real Comp AI adapter is not implemented. See `DECISIONS.md` for the endpoint, auth, and field mapping Solo needs to provide.
+
+Admins open **Library admin** to add a template, archive one, or approve a presenter's "Save as template" / "Suggest improvement" before it enters the library.
 
 `verify-phase1.mjs` needs the dev server and Chrome. It checks that private notes never appear in client frames, that concurrent typing keeps every character, and that Lighthouse accessibility on the client view is at least 95.
 

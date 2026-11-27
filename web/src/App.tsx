@@ -6,6 +6,8 @@ import { ClientRoute, JoinHelp } from "./client/ClientApp";
 const LoginPage = lazy(() => import("./presenter/LoginPage"));
 const SessionsPage = lazy(() => import("./presenter/SessionsPage"));
 const WorkshopPage = lazy(() => import("./presenter/WorkshopPage"));
+const LibraryPage = lazy(() => import("./presenter/LibraryPage"));
+const SummaryPage = lazy(() => import("./client/SummaryPage"));
 
 export function App() {
   return (
@@ -17,6 +19,8 @@ export function App() {
           <Route path="/app/login" element={<LoginPage />} />
           <Route path="/app" element={<SessionsPage />} />
           <Route path="/app/s/:id" element={<WorkshopPage />} />
+          <Route path="/app/library" element={<LibraryPage />} />
+          <Route path="/s/:token" element={<SummaryPage />} />
           <Route path="/join/:code/:token" element={<ClientRoute />} />
           <Route path="/join/:code" element={<JoinHelp />} />
           <Route path="*" element={<HomePage />} />

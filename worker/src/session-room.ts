@@ -1,6 +1,7 @@
 import { DurableObject } from "cloudflare:workers";
 import * as Y from "yjs";
 import { base64ToBytes, bytesToBase64, hmacSign, safeEqual, sha256Hex } from "../../shared/src/bytes";
+import { buildClientSummary } from "../../shared/src/client-summary";
 import { CLIENT_LOCKED_META, readPrivate, readShared, seedPrivate, seedShared, upsertParticipant } from "../../shared/src/doc";
 import { buildOpportunities, toRevealed } from "../../shared/src/estimate";
 import { waitHours } from "../../shared/src/format";
@@ -66,6 +67,9 @@ export class SessionRoom extends DurableObject<Env> {
     }
     if (url.pathname.endsWith("/init") && request.method === "POST") {
       return this.enqueue(() => this.init(request));
+    }
+    if (url.pathname.endsWith("/export") && request.method === "POST") {
+      return this.enqueue(() => this.exportView(request));
     }
     return new Response("Not found", { status: 404 });
   }
@@ -165,6 +169,62 @@ export class SessionRoom extends DurableObject<Env> {
     return Response.json({ ok: true });
   }
 
+  private async exportView(request: Request): Promise<Response> {
+    let body: { sessionId?: string };
+    try {
+      body = await request.json();
+    } catch {
+      return new Response("Bad request", { status: 400 });
+    }
+    if (!body.sessionId || !this.env.AUTH_SECRET) return new Response("Bad request", { status: 400 });
+    const expected = await hmacSign(`export.${body.sessionId}`, this.env.AUTH_SECRET);
+    if (!safeEqual(request.headers.get("x-wm-export") ?? "", expected)) return new Response("Forbidden", { status: 403 });
+    const docs = await this.getDocs();
+    const snap = readShared(docs.shared);
+    const priv = readPrivate(docs.priv);
+    if (!snap || !this.catalog) return Response.json({ error: "Session is not ready" }, { status: 409 });
+    const summary = buildClientSummary({
+      company: snap.client.company,
+      contact: snap.client.contact,
+      contactRole: snap.client.contactRole,
+      city: snap.client.city,
+      product: snap.client.product,
+      teamSize: snap.client.teamSize,
+      processName: snap.processName,
+      runUnit: snap.runUnit,
+      runsPerWeek: snap.runsPerWeek,
+      roles: snap.roles.map((role) => ({ id: role.id, name: role.name })),
+      steps: snap.steps.map((step) => ({
+        id: step.id,
+        title: step.title,
+        roleId: step.roleId,
+        tool: step.tool,
+        minutes: step.minutes,
+        waitValue: step.waitValue,
+        waitUnit: step.waitUnit,
+        flags: step.flags,
+      })),
+      pains: snap.pains.map((pain) => pain.text),
+      whatGood: snap.whatGood,
+      overrides: priv?.overrides ?? {},
+    }, this.catalog);
+    const roleName = (id: string) => snap.roles.find((role) => role.id === id)?.name || "";
+    const draft = {
+      name: snap.processName || "Untitled process",
+      description: snap.client.product ? `Saved from a live workshop. They make ${snap.client.product}.` : "Saved from a live workshop.",
+      runUnit: snap.runUnit || "run",
+      roles: snap.roles.map((role) => role.name).filter(Boolean),
+      steps: snap.steps.map((step) => ({
+        title: step.title || "Untitled step",
+        role: roleName(step.roleId),
+        tool: step.tool,
+        commonFlags: step.flags,
+      })),
+      questions: priv?.questions ?? [],
+    };
+    return Response.json({ summary, draft });
+  }
+
   private loaded: Docs | null = null;
 
   private async getDocs(): Promise<Docs> {
@@ -251,6 +311,7 @@ export class SessionRoom extends DurableObject<Env> {
         if (att.role === "client" && msg.doc === "shared") {
           this.send(ws, { t: "flag", key: "showEstimates", value: this.showEstimates });
           this.send(ws, { t: "revealed", estimates: this.showEstimates ? this.revealedUsing(docs) : null });
+          this.send(ws, { t: "spotlight", titles: this.spotlightTitles(docs) });
         }
         this.broadcastPresence();
         return;
@@ -295,6 +356,7 @@ export class SessionRoom extends DurableObject<Env> {
     await this.persist(docs);
     await this.touchIndex(docs);
     await this.pushRevealed(false);
+    this.sendTo("client", { t: "spotlight", titles: this.spotlightTitles(docs) });
   }
 
   private async applyPrivate(docs: Docs, incoming: Uint8Array, sender: WebSocket): Promise<void> {
@@ -340,6 +402,28 @@ export class SessionRoom extends DurableObject<Env> {
     if (!force && json === this.lastRevealed) return;
     this.lastRevealed = json;
     this.sendTo("client", { t: "revealed", estimates });
+  }
+
+  private spotlightTitles(docs: Docs): string[] {
+    const snap = readShared(docs.shared);
+    if (!snap?.reveal || !this.catalog) return [];
+    const priv = readPrivate(docs.priv);
+    const steps = snap.steps.map((step, index) => ({
+      id: step.id,
+      title: step.title,
+      minutes: step.minutes,
+      waitHours: index < snap.steps.length - 1 ? waitHours(step.waitValue, step.waitUnit) : 0,
+      flags: step.flags,
+      roleName: snap.roles.find((role) => role.id === step.roleId)?.name ?? "",
+      index,
+    }));
+    return buildOpportunities({
+      runsPerWeek: snap.runsPerWeek,
+      steps,
+      overrides: priv?.overrides ?? {},
+      pains: [],
+      catalog: this.catalog,
+    }).ranked.map((item) => item.title);
   }
 
   private revealedUsing(docs: Docs): RevealedEstimates | null {

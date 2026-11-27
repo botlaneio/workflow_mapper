@@ -4,6 +4,7 @@ import { hmacSign, readableCode, safeEqual, secretToken, sha256Hex } from "../..
 import type { Catalog, OrgConfig, ProcessTemplate } from "../../shared/src/types";
 import { clearedCookie, cookieHeader, currentUser, issueCookie, passwordsMatch, sameOrigin } from "./auth";
 import type { Env, SessionRow, UserRow } from "./env";
+import { registerPhase2 } from "./phase2";
 import { ensureReady } from "./seed";
 import { SessionRoom } from "./session-room";
 
@@ -176,12 +177,13 @@ app.post("/api/presenter/sessions", async (c) => {
     if (!clash) break;
     code = readableCode();
   }
+  const summaryToken = secretToken();
   await c.env.DB.prepare(
     `INSERT INTO sessions
-      (id, org_id, code, token_hash, join_token, expires_at, industry, owner_id, template_id, company, process_name, status, link_enabled, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, '', ?, 'live', 1, ?, ?)`,
+      (id, org_id, code, token_hash, join_token, expires_at, industry, owner_id, template_id, company, process_name, status, link_enabled, summary_token, summary_enabled, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, '', ?, 'live', 1, ?, 1, ?, ?)`,
   )
-    .bind(id, user.org_id, code, tokenHash, token, expires, template.industry, user.id, template.id, template.name, now, now)
+    .bind(id, user.org_id, code, tokenHash, token, expires, template.industry, user.id, template.id, template.name, summaryToken, now, now)
     .run();
 
   if (!c.env.AUTH_SECRET) return c.json({ error: "AUTH_SECRET is not configured" }, 503);
@@ -238,6 +240,8 @@ app.get("/api/presenter/sessions/:id", async (c) => {
     ownerName: row.owner_name ?? "",
     expiresAt: row.expires_at,
     linkEnabled: row.link_enabled === 1,
+    summaryUrl: row.summary_token ? `${origin}/s/${row.summary_token}` : "",
+    summaryEnabled: row.summary_enabled !== 0,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   });
@@ -271,6 +275,8 @@ app.get("/api/room/:id/ws", async (c) => {
   const stub = c.env.SESSION_ROOM.get(c.env.SESSION_ROOM.idFromName(id));
   return stub.fetch(c.req.raw);
 });
+
+registerPhase2(app);
 
 app.notFound((c) => c.json({ error: "Not found" }, 404));
 

@@ -54,6 +54,7 @@ export function seedShared(doc: Y.Doc, template: TemplateSeed, ids: () => string
   meta.set("chapter", 1);
   meta.set("prompt", 0);
   meta.set("followMe", true);
+  meta.set("reveal", false);
 
   const client = doc.getMap("client");
   for (const field of CLIENT_FIELDS) client.set(field, text());
@@ -140,6 +141,7 @@ export interface SharedSnap {
   chapter: number;
   prompt: number;
   followMe: boolean;
+  reveal: boolean;
   client: Record<ClientField, string>;
   clientText: Record<ClientField, Y.Text>;
   channels: string[];
@@ -270,6 +272,7 @@ export function readShared(doc: Y.Doc): SharedSnap | null {
     chapter: Number(meta.get("chapter") ?? 1) || 1,
     prompt: Number(meta.get("prompt") ?? 0) || 0,
     followMe: meta.get("followMe") !== false,
+    reveal: meta.get("reveal") === true,
     client: clientValues,
     clientText,
     channels: flagsOf(channelMap),
@@ -373,6 +376,10 @@ export function setChapter(doc: Y.Doc, chapter: number, prompt = 0): void {
 
 export function setFollowMe(doc: Y.Doc, value: boolean): void {
   doc.getMap("meta").set("followMe", value);
+}
+
+export function setReveal(doc: Y.Doc, value: boolean): void {
+  doc.getMap("meta").set("reveal", value);
 }
 
 export function setProcessName(doc: Y.Doc, value: string): void {
@@ -509,4 +516,4 @@ export function roleName(snap: SharedSnap, roleId: string): string {
 }
 
 /** Meta keys a client socket is not allowed to change. */
-export const CLIENT_LOCKED_META = ["orgId", "templateId", "industry", "processName"] as const;
+export const CLIENT_LOCKED_META = ["orgId", "templateId", "industry", "processName", "reveal"] as const;

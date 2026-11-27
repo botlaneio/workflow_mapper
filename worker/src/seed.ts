@@ -19,6 +19,7 @@ async function seed(env: Env): Promise<void> {
   for (const statement of SCHEMA_STATEMENTS) {
     await env.DB.prepare(statement).run();
   }
+  await ensureSessionColumns(env);
   const now = new Date().toISOString();
   const existing = await env.DB.prepare("SELECT id FROM orgs WHERE id = ?").bind(BOTLANE_ORG.id).first();
   if (!existing) {
@@ -29,6 +30,13 @@ async function seed(env: Env): Promise<void> {
       .run();
   }
   await syncTeam(env, now);
+}
+
+async function ensureSessionColumns(env: Env): Promise<void> {
+  const info = await env.DB.prepare("PRAGMA table_info(sessions)").all<{ name: string }>();
+  const names = new Set((info.results ?? []).map((column) => column.name));
+  if (!names.has("summary_token")) await env.DB.prepare("ALTER TABLE sessions ADD COLUMN summary_token TEXT").run();
+  if (!names.has("summary_enabled")) await env.DB.prepare("ALTER TABLE sessions ADD COLUMN summary_enabled INTEGER NOT NULL DEFAULT 1").run();
 }
 
 async function syncTeam(env: Env, now: string): Promise<void> {

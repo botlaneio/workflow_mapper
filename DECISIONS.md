@@ -60,9 +60,29 @@ The header uses the brand kit's navy horizontal lockup (`botlane-horizontal-prim
 
 Simple Icons supplies WhatsApp, Gmail, and Google Sheets. Excel, Tally, and IndiaMART are not in the current Simple Icons set, so those tools use a Lucide icon rather than a made-up mark. Instrument Sans is self-hosted. The client view does not call Google Fonts or any other third party. Pages send `noindex` and `no-referrer`.
 
-## Not in this phase
+## Phase 2
 
-- The animated reveal, the summary link, the PDF, and the CRM push. The Comp AI calls will be copied from `bot_central` in phase 2. They were not guessed, and that repo was not modified.
-- Library admin, "Save as template", and "Suggest improvement".
+The reveal is a shared flag the presenter starts at chapter 5. The client follows. "Today" is the map as described. "With botLane" marks flagged steps as automated and draws their waits back, using opacity and transform only. The top three titles are chosen on the server from the estimate ranking and sent without hour figures or fix text. The caption is "Illustrative, based on what you told us today." Reduced motion jumps to the end state.
+
+The summary link is `/s/<token>`, a second unguessable token, expiring with the session, and switchable off. JSON, the React page, the server-rendered HTML, and the PDF are all built from `buildClientSummary`. That object is an allow-list: map, pains, "what we noticed" with public area names and rough hours, and the two disclaimer sentences. Suggested fixes, factors, notes, tags, and overrides are not copied into it.
+
+The PDF is a text PDF generated in the Worker, with no headless browser and no third-party renderer. The server-rendered HTML is the print fallback for the same page.
+
+CRM is a server-side adapter. `CRM_ADAPTER=noop` (the default) returns without a network call. `CRM_ADAPTER=mock` keeps the last push in the isolate for a local check. Neither calls Comp AI. `bot_central` was not read or changed, so the real HTTP shape was not guessed.
+
+To wire the real adapter, Solo needs to provide:
+
+1. The API base URL to call (the brief names `ops-api.botlane.io`; confirm it).
+2. Auth: the header name, the scheme, and a dedicated secret for this Worker. Do not reuse the website key in the repo.
+3. Find-or-create company: method, path, which field matches an existing company, and the request and response JSON.
+4. Find-or-create contact: method, path, how the contact links to the company, and whether an email is required. The workshop only collects a first name and a role today.
+5. Add note: method, path, and the fields for the title `Workflow map: <process>`, the plain-text body, and the summary URL.
+6. The error shape, and what should happen if the same map is pushed twice.
+
+Library changes from a live map are `template_proposals` rows with `org_id`. Approve writes or updates a template. Reject leaves the library unchanged. An admin can also add or archive a template directly. Presenters cannot approve.
+
+## Still later
+
 - AI routes under `/api/ai/*` return 501 to a signed-in presenter and call no model.
 - Real Estate and Clinics.
+- The real Comp AI HTTP adapter, once the list above is answered.

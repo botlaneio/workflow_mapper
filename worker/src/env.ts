@@ -8,6 +8,8 @@ export interface Env {
   PUBLIC_ORIGIN?: string;
   CF_ACCESS_TEAM_DOMAIN?: string;
   CF_ACCESS_AUD?: string;
+  /** "noop" (default) or "mock". The real Comp AI adapter is not wired. */
+  CRM_ADAPTER?: string;
 }
 
 export interface UserRow {
@@ -32,6 +34,8 @@ export interface SessionRow {
   process_name: string;
   status: "live" | "completed" | "archived";
   link_enabled: number;
+  summary_token?: string | null;
+  summary_enabled?: number | null;
   created_at: string;
   updated_at: string;
   owner_name?: string;

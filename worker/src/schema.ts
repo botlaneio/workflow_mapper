@@ -54,4 +54,20 @@ export const SCHEMA_STATEMENTS = [
 )`,
   `CREATE UNIQUE INDEX IF NOT EXISTS sessions_org_code ON sessions (org_id, code)`,
   `CREATE INDEX IF NOT EXISTS sessions_org_updated ON sessions (org_id, updated_at)`,
+  `CREATE TABLE IF NOT EXISTS template_proposals (
+  id TEXT PRIMARY KEY,
+  org_id TEXT NOT NULL,
+  session_id TEXT,
+  source_template_id TEXT,
+  kind TEXT NOT NULL,
+  name TEXT NOT NULL,
+  description TEXT NOT NULL,
+  run_unit TEXT NOT NULL,
+  data_json TEXT NOT NULL,
+  status TEXT NOT NULL,
+  submitted_by TEXT NOT NULL,
+  reviewed_by TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+)`,
 ];
